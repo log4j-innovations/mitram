@@ -1,0 +1,56 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+pubspec.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Android
+/android/app/src/main/assets/flutter_assets/
+/android/app/google-services.json
+/android/key.properties
+/android/.gradle
+/android/gradle.properties
+/android/build/
+/android/app/build/
+/android/app/profile/
+/android/app/release/
+
+# iOS
+/ios/Pods/
+/ios/Flutter/App.framework
+/ios/Flutter/engine.version
+/ios/Runner/GeneratedPluginRegistrant.*
+/ios/Runner.xcworkspace/
+/ios/.symlinks/
+/ios/Flutter/
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+# Sensitive - API keys and credentials
+lib/utils/api_keys.dart
+storage.txt
+firestore.txt
+firebase.json
+/lib/firebase_options.dart
