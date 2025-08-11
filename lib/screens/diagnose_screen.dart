@@ -1,18 +1,13 @@
 //lib/screens/diagnose_screen.dart
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart'; // Re-add for camera permission
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
-import 'package:uuid/uuid.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Added for FirebaseAuth
+
 import '../services/database_service.dart';
-import '../models/diagnosis_model.dart';
-import '../models/stored_diagnosis.dart'; // Added for StoredDiagnosis
 import '../services/location_service.dart'; // Import LocationService and UserLocation
 import '../utils/api_keys.dart';
 
@@ -28,14 +23,9 @@ class _DiagnoseScreenState extends State<DiagnoseScreen> {
   final ImagePicker _picker = ImagePicker();
   File? _selectedImage;
   bool _isAnalyzing = false;
-  bool _isLoadingWeather = false;
   DiagnosisResult? _diagnosisResult;
   WeatherData? _weatherData;
-  UserLocation? _currentLocation; // Changed from Position to UserLocation
 
-  // At top of your state class
-  final _storage = FirebaseStorage.instance;
-  final _uuid = const Uuid();
   final LocationService _locationService = LocationService(); // Instantiate LocationService
   
   late GenerativeModel _model;
@@ -511,18 +501,7 @@ class _DiagnoseScreenState extends State<DiagnoseScreen> {
     }
   }
 
-  Future<void> _requestLocationPermission() async {
-    // Check if permission granted
-    var status = await Permission.location.request();
-    if (status.isGranted) {
-      var position = await Geolocator.getCurrentPosition();
-      // Now you can save location to Firestore
-    } else {
-      // Handle permission denied
-      debugPrint('Location permission denied');
-      // Optionally show error and exit flow
-    }
-  }
+
 
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -554,31 +533,15 @@ class _DiagnoseScreenState extends State<DiagnoseScreen> {
 
   Future<void> _getCurrentLocation() async {
     try {
-      if (mounted) {
-        setState(() {
-          _isLoadingWeather = true;
-        });
-      }
-
       final bool permissionGranted = await _locationService.requestLocationPermission();
       if (!permissionGranted) {
         _showErrorSnackBar('Location permission not granted. Cannot fetch weather.');
-        if (mounted) {
-          setState(() {
-            _isLoadingWeather = false;
-          });
-        }
         return;
       }
 
       final UserLocation? location = await _locationService.getCurrentLocation();
       
       if (location != null) {
-        if (mounted) {
-          setState(() {
-            _currentLocation = location;
-          });
-        }
         await _getWeatherData(location.latitude, location.longitude);
         await _saveLocationToDatabase(); // Call without parameters
       } else {
@@ -587,12 +550,6 @@ class _DiagnoseScreenState extends State<DiagnoseScreen> {
       
     } catch (e) {
       _showErrorSnackBar('Failed to get location: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingWeather = false;
-        });
-      }
     }
   }
 
@@ -633,20 +590,7 @@ class _DiagnoseScreenState extends State<DiagnoseScreen> {
     }
 
     try {
-      // 1. Get user ID (anonymous or authenticated)
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        await FirebaseAuth.instance.signInAnonymously();
-      }
-      final userId = FirebaseAuth.instance.currentUser!.uid;
-
-      // 2. Upload image to Firebase Storage
-      final imagePath = 'users/$userId/diagnoses/${_uuid.v4()}.jpg';
-      final ref = _storage.ref().child(imagePath);
-      await ref.putFile(_selectedImage!);
-      final imageUrl = await ref.getDownloadURL();
-
-      // 3. Get Gemini AI diagnosis result
+      // Get Gemini AI diagnosis result
       final imageBytes = await _selectedImage!.readAsBytes();
       final prompt = _createDiagnosisPrompt();
       final content = [
@@ -655,24 +599,6 @@ class _DiagnoseScreenState extends State<DiagnoseScreen> {
       final response = await _model.generateContent(content);
       final diagnosis = _parseDiagnosisResponse(response.text ?? '');
 
-      // 4. Create StoredDiagnosis
-      final storedDiagnosis = StoredDiagnosis(
-        userId: userId,
-        diagnosisId: _uuid.v4(),
-        imageUrl: imageUrl,
-        diseaseName: diagnosis.diseaseName,
-        severity: diagnosis.severity,
-        cause: diagnosis.cause,
-        treatment: diagnosis.treatment,
-        prevention: diagnosis.prevention,
-        weatherAdvice: diagnosis.weatherAdvice,
-        timestamp: DateTime.now(),
-      );
-
-      // 5. Save to Firestore
-      final dbService = DatabaseService();
-      await dbService.saveStoredDiagnosis(storedDiagnosis);
-
       if (mounted) {
         setState(() {
           _diagnosisResult = diagnosis;
@@ -680,8 +606,8 @@ class _DiagnoseScreenState extends State<DiagnoseScreen> {
       }
 
     } catch (e) {
-      debugPrint('Failed to analyze and store diagnosis: $e');
-      _showErrorSnackBar('Failed to save diagnosis. Please try again.');
+      debugPrint('Failed to analyze image: $e');
+      _showErrorSnackBar('Failed to analyze image. Please try again.');
     } finally {
       if (mounted) {
         setState(() {
@@ -759,14 +685,6 @@ Focus on:
     }
   }
 
-  Future<void> _saveDiagnosisToDatabase(DiagnosisResult diagnosis) async {
-    try {
-      final dbService = DatabaseService();
-      await dbService.saveDiagnosis(diagnosis);
-    } catch (e) {
-      debugPrint('Failed to save diagnosis: $e');
-    }
-  }
 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -774,6 +692,46 @@ Focus on:
         content: Text(message),
         backgroundColor: Colors.red.shade600,
       ),
+    );
+  }
+}
+
+class DiagnosisResult {
+  final String diseaseName;
+  final String severity;
+  final String cause;
+  final String treatment;
+  final String prevention;
+  final String weatherAdvice;
+  final DateTime timestamp;
+
+  DiagnosisResult({
+    required this.diseaseName,
+    required this.severity,
+    required this.cause,
+    required this.treatment,
+    required this.prevention,
+    required this.weatherAdvice,
+    required this.timestamp,
+  });
+}
+
+class WeatherData {
+  final double temperature;
+  final int humidity;
+  final String condition;
+
+  WeatherData({
+    required this.temperature,
+    required this.humidity,
+    required this.condition,
+  });
+
+  factory WeatherData.fromJson(Map<String, dynamic> json) {
+    return WeatherData(
+      temperature: json['main']['temp'].toDouble(),
+      humidity: json['main']['humidity'],
+      condition: json['weather']['main'],
     );
   }
 }

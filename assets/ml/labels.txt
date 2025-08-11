@@ -1,3 +1,22 @@
-Healthy
-Disease A
-Disease B
+0 Apple___Apple_scab
+1 Apple___Black_rot
+2 Apple___Cedar_apple_rust
+3 Apple___healthy
+4 Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot
+5 Corn_(maize)___Common_rust_
+6 Corn_(maize)___healthy
+7 Potato___Early_blight
+8 Potato___healthy
+9 Potato___Late_blight
+10 Tomato___Bacterial_spot
+11 Tomato___Early_blight
+12 Tomato___healthy
+13 Tomato___Leaf_Mold
+14 Tomato___Septoria_leaf_spot
+15 Tomato___Spider_mites Two-spotted_spider_mite
+16 Tomato___Target_Spot
+17 Tomato___Tomato_mosaic_virus
+18 Tomato___Tomato_Yellow_Leaf_Curl_Virus
+19 Background_without_leaves
+20 Corn_(maize)___Northern_Leaf_Blight
+21 Tomato___Late_blight

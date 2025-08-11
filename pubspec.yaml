@@ -41,8 +41,6 @@ dependencies:
   firebase_core: ^2.27.0
   firebase_auth: ^4.17.8
   cloud_firestore: ^4.15.8
-  firebase_storage: ^11.6.9
-  uuid: ^3.0.7
   firebase_messaging: ^14.7.19
   google_maps_flutter: ^2.5.3
   geolocator: ^11.0.0
@@ -81,8 +79,10 @@ dev_dependencies:
     sdk: flutter
   isar_generator: ^3.1.0+1
   build_runner: ^2.4.8
+  json_serializable: ^6.7.1
   flutter_lints: ^2.0.0
   flutter_launcher_icons: ^0.13.1
+  analyzer: ^5.13.0
 
 flutter_launcher_icons:
   android: "launcher_icon"
@@ -107,6 +107,32 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/logo.png
+    - assets/graph.png
+    - assets/ml/model.tflite
+    - assets/ml/labels.txt
+    # Disease data files
+    - assets/data/disease_data/0 Apple___Apple_scab.json
+    - assets/data/disease_data/1 Apple___Black_rot.json
+    - assets/data/disease_data/2 Apple___Cedar_apple_rust.json
+    - assets/data/disease_data/3 Apple___healthy.json
+    - assets/data/disease_data/4 Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot.json
+    - assets/data/disease_data/5 Corn_(maize)___Common_rust_.json
+    - assets/data/disease_data/6 Corn_(maize)___healthy.json
+    - assets/data/disease_data/7 Potato___Early_blight.json
+    - assets/data/disease_data/8 Potato___healthy.json
+    - assets/data/disease_data/9 Potato___Late_blight.json
+    - assets/data/disease_data/10 Tomato___Bacterial_spot.json
+    - assets/data/disease_data/11 Tomato___Early_blight.json
+    - assets/data/disease_data/12 Tomato___healthy.json
+    - assets/data/disease_data/13 Tomato___Leaf_Mold.json
+    - assets/data/disease_data/14 Tomato___Septoria_leaf_spot.json
+    - assets/data/disease_data/15 Tomato___Spider_mites Two-spotted_spider_mite.json
+    - assets/data/disease_data/16 Tomato___Target_Spot.json
+    - assets/data/disease_data/17 Tomato___Tomato_mosaic_virus.json
+    - assets/data/disease_data/18 Tomato___Tomato_Yellow_Leaf_Curl_Virus.json
+    - assets/data/disease_data/19 Background_without_leaves.json
+    - assets/data/disease_data/20 Corn_(maize)___Northern_Leaf_Blight.json
+    - assets/data/disease_data/21 Tomato___Late_blight.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

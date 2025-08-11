@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:mitram/screens/diagnose_screen.dart'; // Import DiagnoseScreen
+import 'package:mitram/screens/mandi_screen.dart'; // Import MandiScreen
 import 'package:mitram/screens/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -23,7 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _screens = [
       HomeScreenBody(onNavigate: _onItemTapped),
       const DiagnoseScreen(),
-      const Scaffold(body: Center(child: Text("Mandi Screen"))),
+      const MandiScreen(),
       const Scaffold(body: Center(child: Text("Community Screen"))),
       const ProfileScreen(),
     ];
@@ -209,10 +210,7 @@ class HomeScreenBody extends StatelessWidget {
           SizedBox(width: spacing),
           Expanded(
               child: _buildMainButton(Icons.trending_up, 'Mandi', () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Mandi Price Forecast coming soon!')),
-            );
+            onNavigate(2);
           }, screenWidth, buttonHeight)),
           SizedBox(width: spacing),
           Expanded(
@@ -244,10 +242,7 @@ class HomeScreenBody extends StatelessWidget {
             SizedBox(width: spacing),
             Expanded(
                 child: _buildMainButton(Icons.trending_up, 'Mandi', () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Mandi Price Forecast coming soon!')),
-              );
+              onNavigate(2);
             }, screenWidth, buttonHeight)),
           ],
         ),

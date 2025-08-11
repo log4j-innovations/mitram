@@ -1,7 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/diagnosis_model.dart';
-import '../models/stored_diagnosis.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mitram/services/location_service.dart'; // Import LocationService and UserLocation
 
@@ -52,50 +50,6 @@ class DatabaseService {
     }
   }
 
-  // Save diagnosis result
-  Future<void> saveDiagnosis(DiagnosisResult diagnosis) async {
-    try {
-      // Create anonymous user if not authenticated
-      if (userId == null) {
-        await _auth.signInAnonymously();
-      }
-
-      if (userId == null) return;
-
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('diagnoses')
-          .add(diagnosis.toJson());
-
-      // Update user stats
-      await _updateUserStats();
-    } catch (e) {
-      debugPrint('Failed to save diagnosis: $e');
-    }
-  }
-
-  // Get user's diagnosis history
-  Future<List<DiagnosisResult>> getDiagnosisHistory() async {
-    if (userId == null) return [];
-
-    try {
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('diagnoses')
-          .orderBy('timestamp', descending: true)
-          .limit(50)
-          .get();
-
-      return snapshot.docs
-          .map((doc) => DiagnosisResult.fromJson(doc.data()))
-          .toList();
-    } catch (e) {
-      debugPrint('Failed to get diagnosis history: $e');
-      return [];
-    }
-  }
 
   // Get user's current location
   Future<UserLocation?> getCurrentLocation() async {
@@ -115,19 +69,6 @@ class DatabaseService {
     }
   }
 
-  // Update user statistics
-  Future<void> _updateUserStats() async {
-    if (userId == null) return;
-
-    try {
-      await _firestore.collection('users').doc(userId).update({
-        'totalDiagnoses': FieldValue.increment(1),
-        'lastDiagnosisDate': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      debugPrint('Failed to update user stats: $e');
-    }
-  }
 
   // Initialize user profile
   Future<void> initializeUserProfile() async {
@@ -153,25 +94,4 @@ class DatabaseService {
     }
   }
 
-  Future<void> saveStoredDiagnosis(StoredDiagnosis diagnosis) async {
-    try {
-      // Ensure user is authenticated (or create anonymous user)
-      if (_auth.currentUser == null) {
-        await _auth.signInAnonymously();
-      }
-      final userId = _auth.currentUser!.uid;
-
-      // Save to Firestore, under user's collection
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('diagnoses')
-          .doc(diagnosis.diagnosisId)
-          .set(diagnosis.toJson());
-
-    } catch (e) {
-      // Use a logging framework in production
-      debugPrint('Failed to save stored diagnosis: $e');
-    }
-  }
 }
