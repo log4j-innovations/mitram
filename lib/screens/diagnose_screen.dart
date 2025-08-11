@@ -3,12 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart'; // Re-add for camera permission
 import 'package:google_generative_ai/google_generative_ai.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
 
-import '../services/database_service.dart';
-import '../services/location_service.dart'; // Import LocationService and UserLocation
 import '../utils/api_keys.dart';
 
 class DiagnoseScreen extends StatefulWidget {
@@ -24,9 +21,6 @@ class _DiagnoseScreenState extends State<DiagnoseScreen> {
   File? _selectedImage;
   bool _isAnalyzing = false;
   DiagnosisResult? _diagnosisResult;
-  WeatherData? _weatherData;
-
-  final LocationService _locationService = LocationService(); // Instantiate LocationService
   
   late GenerativeModel _model;
   
@@ -34,7 +28,6 @@ class _DiagnoseScreenState extends State<DiagnoseScreen> {
   void initState() {
     super.initState();
     _initializeGemini();
-    _getCurrentLocation();
   }
   
   void _initializeGemini() {
@@ -110,9 +103,7 @@ class _DiagnoseScreenState extends State<DiagnoseScreen> {
               _buildCameraSection(screenWidth, screenHeight),
               SizedBox(height: screenHeight * 0.02),
               
-              // Weather Info
-              if (_weatherData != null)
-                _buildWeatherCard(screenWidth, screenHeight),
+
               
               // Analysis Result
               if (_diagnosisResult != null)
@@ -291,72 +282,8 @@ class _DiagnoseScreenState extends State<DiagnoseScreen> {
     );
   }
 
-  Widget _buildWeatherCard(double screenWidth, double screenHeight) {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(screenWidth * 0.04),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(screenWidth * 0.04),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.wb_sunny,
-                  color: Colors.orange.shade600,
-                  size: screenWidth * 0.06,
-                ),
-                SizedBox(width: screenWidth * 0.02),
-                Text(
-                  'Current Weather',
-                  style: TextStyle(
-                    fontSize: screenWidth * 0.045,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: screenHeight * 0.015),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildWeatherInfo('Temperature', '${_weatherData!.temperature.toStringAsFixed(1)}°C', screenWidth),
-                _buildWeatherInfo('Humidity', '${_weatherData!.humidity}%', screenWidth),
-                _buildWeatherInfo('Condition', _weatherData!.condition, screenWidth),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildWeatherInfo(String label, String value, double screenWidth) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: screenWidth * 0.03,
-            color: Colors.grey.shade600,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: screenWidth * 0.035,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-          ),
-        ),
-      ],
-    );
-  }
+
 
   Widget _buildDiagnosisCard(double screenWidth, double screenHeight) {
     return Card(
@@ -531,54 +458,7 @@ class _DiagnoseScreenState extends State<DiagnoseScreen> {
     }
   }
 
-  Future<void> _getCurrentLocation() async {
-    try {
-      final bool permissionGranted = await _locationService.requestLocationPermission();
-      if (!permissionGranted) {
-        _showErrorSnackBar('Location permission not granted. Cannot fetch weather.');
-        return;
-      }
 
-      final UserLocation? location = await _locationService.getCurrentLocation();
-      
-      if (location != null) {
-        await _getWeatherData(location.latitude, location.longitude);
-        await _saveLocationToDatabase(); // Call without parameters
-      } else {
-        _showErrorSnackBar('Could not get current location.');
-      }
-      
-    } catch (e) {
-      _showErrorSnackBar('Failed to get location: $e');
-    }
-  }
-
-  Future<void> _getWeatherData(double lat, double lon) async {
-    try {
-      final url = 'https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=$weatherApiKey&units=metric';
-      final response = await http.get(Uri.parse(url));
-      
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (mounted) {
-          setState(() {
-            _weatherData = WeatherData.fromJson(data);
-          });
-        }
-      }
-    } catch (e) {
-      _showErrorSnackBar('Failed to get weather data: $e');
-    }
-  }
-
-  Future<void> _saveLocationToDatabase() async { // No longer takes parameters
-    try {
-      final dbService = DatabaseService();
-      await dbService.saveUserLocation(); // Call without parameters
-    } catch (e) {
-      debugPrint('Failed to save location: $e');
-    }
-  }
 
   Future<void> _analyzeImage() async {
     if (_selectedImage == null) return;
@@ -618,20 +498,8 @@ class _DiagnoseScreenState extends State<DiagnoseScreen> {
   }
 
   String _createDiagnosisPrompt() {
-    String weatherInfo = '';
-    if (_weatherData != null) {
-      weatherInfo = '''
-Current Weather Conditions:
-- Temperature: ${_weatherData!.temperature}°C
-- Humidity: ${_weatherData!.humidity}%
-- Weather: ${_weatherData!.condition}
-''';
-    }
-
     return '''
 You are an expert agricultural pathologist helping Indian farmers. Analyze this crop image and provide a detailed diagnosis in simple language that a farmer can easily understand.
- 
-$weatherInfo
  
 Please provide your response in the following JSON format:
 {
@@ -677,9 +545,7 @@ Focus on:
         cause: 'Disease analysis completed. Please consult with local agriculture expert for detailed diagnosis.',
         treatment: response.length > 200 ? '${response.substring(0, 200)}...' : response,
         prevention: 'Follow proper crop management practices and maintain field hygiene.',
-        weatherAdvice: _weatherData != null 
-          ? 'Current weather: ${_weatherData!.condition}, Temperature: ${_weatherData!.temperature}°C'
-          : 'Monitor weather conditions regularly',
+        weatherAdvice: 'Monitor weather conditions regularly',
         timestamp: DateTime.now(),
       );
     }
@@ -716,22 +582,4 @@ class DiagnosisResult {
   });
 }
 
-class WeatherData {
-  final double temperature;
-  final int humidity;
-  final String condition;
 
-  WeatherData({
-    required this.temperature,
-    required this.humidity,
-    required this.condition,
-  });
-
-  factory WeatherData.fromJson(Map<String, dynamic> json) {
-    return WeatherData(
-      temperature: json['main']['temp'].toDouble(),
-      humidity: json['main']['humidity'],
-      condition: json['weather']['main'],
-    );
-  }
-}

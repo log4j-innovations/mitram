@@ -45,7 +45,11 @@ class _MandiScreenState extends State<MandiScreen> {
     });
 
     try {
-      final prices = await _mandiService.getMandiPrices(limit: 100);
+      // Load Uttar Pradesh data by default
+      final prices = await _mandiService.getMandiPrices(
+        state: 'Uttar Pradesh',
+        limit: 100,
+      );
       final states = await _mandiService.getStates();
       final commodities = await _mandiService.getCommodities();
 
@@ -54,6 +58,7 @@ class _MandiScreenState extends State<MandiScreen> {
           _prices = prices;
           _states = states;
           _commodities = commodities;
+          _selectedState = 'Uttar Pradesh'; // Set UP as default
           _isLoading = false;
         });
       }
@@ -123,7 +128,7 @@ You are an expert agricultural economist helping Indian farmers. Analyze this ma
 2. **Best Selling Time**: When is the best time to sell in the next 2-3 weeks?
 3. **Price Prediction**: What might happen to prices in the coming days?
 4. **Farmer Advice**: What should farmers do right now?
-
+5. **Commodity Analysis**: What is the current demand and supply of the commodity?
 Current Price Data:
 $priceSummary
 
@@ -245,13 +250,32 @@ Provide your response in simple Hindi-English mixed language that Indian farmers
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Filter Prices',
-              style: TextStyle(
-                fontSize: screenWidth * 0.05,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Filter Prices',
+                  style: TextStyle(
+                    fontSize: screenWidth * 0.05,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+                IconButton(
+                  onPressed: _isLoading ? null : _loadInitialData,
+                  icon: _isLoading
+                      ? SizedBox(
+                          width: screenWidth * 0.04,
+                          height: screenWidth * 0.04,
+                          child: CircularProgressIndicator(
+                            color: Colors.green.shade600,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Icon(Icons.refresh, color: Colors.green.shade600),
+                  tooltip: 'Refresh prices',
+                ),
+              ],
             ),
             SizedBox(height: screenHeight * 0.02),
             

@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:mitram/screens/diagnose_screen.dart'; // Import DiagnoseScreen
 import 'package:mitram/screens/mandi_screen.dart'; // Import MandiScreen
+import 'package:mitram/screens/govt_schemes_screen.dart'; // Import GovtSchemesScreen
 import 'package:mitram/screens/profile_screen.dart';
+import 'package:mitram/services/mandi_service.dart'; // Import MandiService
 
 class HomeScreen extends StatefulWidget {
   static const routeName = '/home';
@@ -25,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
       HomeScreenBody(onNavigate: _onItemTapped),
       const DiagnoseScreen(),
       const MandiScreen(),
-      const Scaffold(body: Center(child: Text("Community Screen"))),
+      const GovtSchemesScreen(),
       const ProfileScreen(),
     ];
   }
@@ -113,16 +115,62 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.camera_alt), label: 'Diagnose'),
         BottomNavigationBarItem(
             icon: Icon(Icons.trending_up), label: 'Mandi'),
-        BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Community'),
+        BottomNavigationBarItem(icon: Icon(Icons.account_balance), label: 'Govt'),
         BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
       ],
     );
   }
+
+
 }
 
-class HomeScreenBody extends StatelessWidget {
+class HomeScreenBody extends StatefulWidget {
   final Function(int) onNavigate;
   const HomeScreenBody({super.key, required this.onNavigate});
+
+  @override
+  _HomeScreenBodyState createState() => _HomeScreenBodyState();
+}
+
+class _HomeScreenBodyState extends State<HomeScreenBody> {
+  final MandiService _mandiService = MandiService();
+  List<MandiPrice> _mandiPrices = [];
+  bool _isLoadingMandi = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMandiData();
+  }
+
+  Future<void> _loadMandiData() async {
+    setState(() {
+      _isLoadingMandi = true;
+    });
+
+    try {
+      final prices = await _mandiService.getMandiPrices(
+        state: 'Uttar Pradesh', // Load UP data by default
+        limit: 20,
+      );
+      if (mounted) {
+        setState(() {
+          _mandiPrices = prices;
+          _isLoadingMandi = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingMandi = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _refreshMandiData() async {
+    await _loadMandiData();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -205,19 +253,17 @@ class HomeScreenBody extends StatelessWidget {
         children: [
           Expanded(
               child: _buildMainButton(Icons.camera_alt, 'Diagnose', () {
-            onNavigate(1);
+            widget.onNavigate(1);
           }, screenWidth, buttonHeight)),
           SizedBox(width: spacing),
           Expanded(
               child: _buildMainButton(Icons.trending_up, 'Mandi', () {
-            onNavigate(2);
+            widget.onNavigate(2);
           }, screenWidth, buttonHeight)),
           SizedBox(width: spacing),
           Expanded(
               child: _buildMainButton(Icons.account_balance, 'Govt.', () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Government Schemes coming soon!')),
-            );
+            widget.onNavigate(3);
           }, screenWidth, buttonHeight)),
           SizedBox(width: spacing),
           Expanded(
@@ -237,12 +283,12 @@ class HomeScreenBody extends StatelessWidget {
           children: [
             Expanded(
                 child: _buildMainButton(Icons.camera_alt, 'Diagnose', () {
-              onNavigate(1);
+              widget.onNavigate(1);
             }, screenWidth, buttonHeight)),
             SizedBox(width: spacing),
             Expanded(
                 child: _buildMainButton(Icons.trending_up, 'Mandi', () {
-              onNavigate(2);
+              widget.onNavigate(2);
             }, screenWidth, buttonHeight)),
           ],
         ),
@@ -251,10 +297,7 @@ class HomeScreenBody extends StatelessWidget {
           children: [
             Expanded(
                 child: _buildMainButton(Icons.account_balance, 'Govt.', () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Government Schemes coming soon!')),
-              );
+              widget.onNavigate(3);
             }, screenWidth, buttonHeight)),
             SizedBox(width: spacing),
             Expanded(
@@ -374,78 +417,184 @@ class HomeScreenBody extends StatelessWidget {
                     color: Colors.black,
                   ),
                 ),
-                Icon(Icons.trending_up,
-                    color: Colors.green, size: screenWidth * 0.06),
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: _isLoadingMandi ? null : _refreshMandiData,
+                      icon: _isLoadingMandi
+                          ? SizedBox(
+                              width: screenWidth * 0.04,
+                              height: screenWidth * 0.04,
+                              child: CircularProgressIndicator(
+                                color: Colors.green.shade600,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Icon(Icons.refresh, color: Colors.green.shade600),
+                      tooltip: 'Refresh prices',
+                    ),
+                    Icon(Icons.trending_up,
+                        color: Colors.green, size: screenWidth * 0.06),
+                  ],
+                ),
               ],
             ),
             SizedBox(height: screenHeight * 0.02),
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.symmetric(
-                horizontal: screenWidth * 0.03,
-                vertical: screenHeight * 0.008,
-              ),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(screenWidth * 0.02),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: 'Select Crop/Region',
-                  isExpanded: true,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: screenWidth * 0.04, // Responsive font size
+            // Live Price Display
+            if (_isLoadingMandi)
+              Center(
+                child: Padding(
+                  padding: EdgeInsets.all(screenHeight * 0.02),
+                  child: CircularProgressIndicator(
+                    color: Colors.green.shade600,
+                    strokeWidth: 2,
                   ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'Select Crop/Region',
-                      child: Text('Select Crop/Region'),
+                ),
+              )
+            else if (_mandiPrices.isNotEmpty)
+              Column(
+                children: [
+                  // Top 3 Prices
+                  ..._mandiPrices.take(3).map((price) => Container(
+                    margin: EdgeInsets.only(bottom: screenHeight * 0.01),
+                    padding: EdgeInsets.all(screenWidth * 0.03),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(screenWidth * 0.02),
+                      border: Border.all(color: Colors.green.shade200),
                     ),
-                    DropdownMenuItem(
-                      value: 'Wheat - Punjab',
-                      child: Text('Wheat - Punjab'),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                price.commodity,
+                                style: TextStyle(
+                                  fontSize: screenWidth * 0.035,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              Text(
+                                '${price.market}, ${price.district}',
+                                style: TextStyle(
+                                  fontSize: screenWidth * 0.03,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '₹${price.modalPrice}',
+                              style: TextStyle(
+                                fontSize: screenWidth * 0.04,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                            Text(
+                              'per ${price.unit}',
+                              style: TextStyle(
+                                fontSize: screenWidth * 0.025,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    DropdownMenuItem(
-                      value: 'Rice - Haryana',
-                      child: Text('Rice - Haryana'),
+                  )),
+                  SizedBox(height: screenHeight * 0.01),
+                  // View All Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => widget.onNavigate(2),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade600,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(screenWidth * 0.02),
+                        ),
+                      ),
+                      child: Text(
+                        'View All Prices',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: screenWidth * 0.035,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                    DropdownMenuItem(
-                      value: 'Cotton - Gujarat',
-                      child: Text('Cotton - Gujarat'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Sugarcane - UP',
-                      child: Text('Sugarcane - UP'),
+                  ),
+                ],
+              )
+            else
+              Container(
+                padding: EdgeInsets.all(screenWidth * 0.03),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(screenWidth * 0.02),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline,
+                        color: Colors.grey.shade600, size: screenWidth * 0.05),
+                    SizedBox(width: screenWidth * 0.02),
+                    Expanded(
+                      child: Text(
+                        'Tap to view live mandi prices',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: screenWidth * 0.035,
+                        ),
+                      ),
                     ),
                   ],
-                  onChanged: (value) {
-                    // AI-powered crop selection will be implemented later
-                  },
                 ),
               ),
-            ),
             SizedBox(height: screenHeight * 0.02),
             Container(
               padding: EdgeInsets.all(screenWidth * 0.03),
               decoration: BoxDecoration(
-                color: Colors.green.shade50,
+                color: Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(screenWidth * 0.02),
-                border: Border.all(color: Colors.green.shade200),
+                border: Border.all(color: Colors.blue.shade200),
               ),
               child: Row(
                 children: [
                   Icon(Icons.auto_awesome,
-                      color: Colors.green.shade700, size: screenWidth * 0.05),
+                      color: Colors.blue.shade700, size: screenWidth * 0.05),
                   SizedBox(width: screenWidth * 0.02),
                   Expanded(
-                    child: Text(
-                      'AI Forecast: Best time to sell is next week!',
-                      style: TextStyle(
-                        color: Colors.green.shade800,
-                        fontWeight: FontWeight.w500,
-                        fontSize: screenWidth * 0.035, // Responsive font size
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Live Market Data',
+                          style: TextStyle(
+                            color: Colors.blue.shade800,
+                            fontWeight: FontWeight.bold,
+                            fontSize: screenWidth * 0.035,
+                          ),
+                        ),
+                        Text(
+                          _mandiPrices.isNotEmpty 
+                            ? '${_mandiPrices.length} commodities tracked'
+                            : 'Real-time prices from across India',
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontSize: screenWidth * 0.03,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -453,41 +602,43 @@ class HomeScreenBody extends StatelessWidget {
             ),
             SizedBox(height: screenHeight * 0.02),
             Container(
-              height: screenHeight * 0.15, // Responsive chart height
-              child: LineChart(
-                LineChartData(
-                  gridData: const FlGridData(show: false),
-                  titlesData: const FlTitlesData(show: false),
-                  borderData: FlBorderData(
-                    show: true,
-                    border: const Border(
-                      left: BorderSide(color: Colors.black, width: 2),
-                      bottom: BorderSide(color: Colors.black, width: 2),
+              height: screenHeight * 0.15,
+              child: _mandiPrices.isNotEmpty
+                ? LineChart(
+                    LineChartData(
+                      gridData: const FlGridData(show: false),
+                      titlesData: const FlTitlesData(show: false),
+                      borderData: FlBorderData(
+                        show: true,
+                        border: const Border(
+                          left: BorderSide(color: Colors.black, width: 2),
+                          bottom: BorderSide(color: Colors.black, width: 2),
+                        ),
+                      ),
+                      minX: 0,
+                      maxX: (_mandiPrices.length - 1).toDouble(),
+                      minY: 0,
+                      maxY: _getMaxPrice(),
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: _getChartData(),
+                          isCurved: true,
+                          color: Colors.green.shade600,
+                          barWidth: 3,
+                          dotData: const FlDotData(show: false),
+                        ),
+                      ],
+                    ),
+                  )
+                : Center(
+                    child: Text(
+                      'Price trends will appear here',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: screenWidth * 0.035,
+                      ),
                     ),
                   ),
-                  minX: 0,
-                  maxX: 6,
-                  minY: 0,
-                  maxY: 4,
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: const [
-                        FlSpot(0, 3),
-                        FlSpot(1, 2.8),
-                        FlSpot(2, 2.5),
-                        FlSpot(3, 2.3),
-                        FlSpot(4, 2.1),
-                        FlSpot(5, 1.9),
-                        FlSpot(6, 1.5),
-                      ],
-                      isCurved: true,
-                      color: Colors.orange,
-                      barWidth: 3,
-                      dotData: const FlDotData(show: false),
-                    ),
-                  ],
-                ),
-              ),
             ),
           ],
         ),
@@ -497,80 +648,123 @@ class HomeScreenBody extends StatelessWidget {
 
   Widget _buildSchemeCard(
       BuildContext context, double screenWidth, double screenHeight) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(screenWidth * 0.03),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(screenWidth * 0.04),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Govt Schemes',
-                  style: TextStyle(
-                    fontSize: screenWidth * 0.05, // Responsive font size
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-                Icon(Icons.search,
-                    color: Colors.grey.shade600, size: screenWidth * 0.06),
-              ],
-            ),
-            SizedBox(height: screenHeight * 0.015),
-            Text(
-              '"What schemes apply to me?"',
-              style: TextStyle(
-                fontSize: screenWidth * 0.035, // Responsive font size
-                color: Colors.grey.shade600,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-            SizedBox(height: screenHeight * 0.02),
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.all(screenWidth * 0.04),
-              decoration: BoxDecoration(
-                color: const Color(0xFFA8D5A8),
-                borderRadius: BorderRadius.circular(screenWidth * 0.02),
-              ),
-              child: Column(
+    return GestureDetector(
+      onTap: () => widget.onNavigate(3),
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(screenWidth * 0.03),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(screenWidth * 0.04),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(
-                    Icons.auto_awesome,
-                    color: Colors.white,
-                    size: screenWidth * 0.05,
-                  ),
-                  SizedBox(height: screenHeight * 0.008),
                   Text(
-                    'AI-Powered Scheme Matching',
+                    'Govt Schemes',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: screenWidth * 0.04, // Responsive font size
+                      fontSize: screenWidth * 0.05, // Responsive font size
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
                     ),
-                    textAlign: TextAlign.center,
                   ),
-                  SizedBox(height: screenHeight * 0.005),
-                  Text(
-                    'Personalized based on your profile',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: screenWidth * 0.03, // Responsive font size
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
+                  Icon(Icons.auto_awesome,
+                      color: Colors.blue.shade600, size: screenWidth * 0.06),
                 ],
               ),
-            ),
-          ],
+              SizedBox(height: screenHeight * 0.015),
+              Text(
+                '"What schemes apply to me?"',
+                style: TextStyle(
+                  fontSize: screenWidth * 0.035, // Responsive font size
+                  color: Colors.grey.shade600,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              SizedBox(height: screenHeight * 0.02),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(screenWidth * 0.04),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.blue.shade600, Colors.blue.shade800],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(screenWidth * 0.02),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.auto_awesome,
+                      color: Colors.white,
+                      size: screenWidth * 0.05,
+                    ),
+                    SizedBox(height: screenHeight * 0.008),
+                    Text(
+                      'AI-Powered Scheme Matching',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: screenWidth * 0.04, // Responsive font size
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: screenHeight * 0.005),
+                    Text(
+                      'Tap to find your eligible schemes',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: screenWidth * 0.03, // Responsive font size
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: screenHeight * 0.01),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: screenWidth * 0.03,
+                        vertical: screenHeight * 0.005,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(screenWidth * 0.02),
+                      ),
+                      child: Text(
+                        'Find Schemes',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: screenWidth * 0.03,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  List<FlSpot> _getChartData() {
+    return _mandiPrices.asMap().entries.map((entry) {
+      final index = entry.key;
+      final price = entry.value;
+      final modalPrice = double.tryParse(price.modalPrice) ?? 0.0;
+      return FlSpot(index.toDouble(), modalPrice);
+    }).toList();
+  }
+
+  double _getMaxPrice() {
+    if (_mandiPrices.isEmpty) return 1000.0;
+    final maxPrice = _mandiPrices.map((price) {
+      return double.tryParse(price.modalPrice) ?? 0.0;
+    }).reduce((a, b) => a > b ? a : b);
+    return maxPrice * 1.1; // Add 10% padding
   }
 }
